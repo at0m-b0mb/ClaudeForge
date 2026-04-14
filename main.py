@@ -6,6 +6,7 @@ ClaudeForge — Universal Claude Code Installer & Hardware Recommender
 Usage:
     python main.py                              Full interactive setup wizard (CLI)
     python main.py --gui                        Launch the modern graphical interface
+    python main.py --models                     Browse full model catalog (CLI table view)
     python main.py --detect                     Detect hardware only
     python main.py --benchmark                  Detect + benchmark, show recommendations
     python main.py --install                    Install Claude Code (skip hardware steps)
@@ -151,6 +152,19 @@ def cmd_check(args):
         console.print("\n[green]  All required prerequisites are satisfied.[/green]")
 
 
+def cmd_models(args):
+    """Print all models in the database as rich tables."""
+    from src.models.database import ModelDatabase
+    from src.ui.components import all_models_tables
+    console = Console()
+    print_banner(console)
+    print_section(console, "Model Catalog")
+    db = ModelDatabase()
+    for _section_name, table in all_models_tables(db):
+        console.print(table)
+        console.print()
+
+
 def cmd_gui(args):
     """Launch the ClaudeForge graphical interface."""
     try:
@@ -266,6 +280,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--gui", action="store_true",
         help="Launch the modern graphical interface (requires customtkinter).",
     )
+    parser.add_argument(
+        "--models", action="store_true",
+        help="Browse the full model catalog (Claude API + Ollama local models).",
+    )
 
     # ── Alias sub-options ──────────────────────────────────────────────────────
     alias_group = parser.add_argument_group(
@@ -307,6 +325,8 @@ def main():
 
     if args.gui:
         cmd_gui(args)
+    elif args.models:
+        cmd_models(args)
     elif args.detect:
         cmd_detect(args)
     elif args.benchmark:

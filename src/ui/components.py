@@ -205,6 +205,82 @@ def prerequisites_table(statuses: list) -> Table:
 
 
 # ------------------------------------------------------------------
+# All-models browser tables
+# ------------------------------------------------------------------
+
+def all_models_tables(db) -> list:
+    """
+    Return a list of (title, Table) tuples showing every model in the database.
+    `db` is a ModelDatabase instance.
+    """
+    tables = []
+
+    # ── Claude API models ─────────────────────────────────────────────
+    api_table = Table(
+        title="Claude API Models",
+        box=box.ROUNDED,
+        header_style="bold cyan",
+        show_lines=True,
+    )
+    api_table.add_column("Model ID",         style="bold white",  min_width=22)
+    api_table.add_column("Display Name",     style="cyan",        min_width=20)
+    api_table.add_column("Tier",             justify="center",    min_width=10)
+    api_table.add_column("Context Window",   justify="right",     min_width=14)
+    api_table.add_column("Strengths",        style="dim white",   min_width=28)
+    api_table.add_column("Best For",         style="dim white",   min_width=28)
+
+    tier_styles = {"fast": "bold green", "balanced": "bold cyan", "powerful": "bold magenta"}
+    for m in db.claude_api_models:
+        tier_text = Text(m.tier.upper(), style=tier_styles.get(m.tier, "white"))
+        ctx = f"{m.context_window // 1000}K tokens"
+        api_table.add_row(
+            m.id,
+            m.display_name,
+            tier_text,
+            ctx,
+            ", ".join(m.strengths),
+            ", ".join(m.recommended_for),
+        )
+    tables.append(("Claude API", api_table))
+
+    # ── Local / Ollama models ─────────────────────────────────────────
+    local_table = Table(
+        title="Local Models  (run via Ollama)",
+        box=box.ROUNDED,
+        header_style="bold cyan",
+        show_lines=True,
+    )
+    local_table.add_column("Model ID",       style="bold white",  min_width=24)
+    local_table.add_column("Display Name",   style="yellow",      min_width=22)
+    local_table.add_column("VRAM Required",  justify="right",     min_width=12)
+    local_table.add_column("RAM Required",   justify="right",     min_width=10)
+    local_table.add_column("Quality",        justify="center",    min_width=10)
+    local_table.add_column("Speed",          justify="center",    min_width=10)
+    local_table.add_column("Use Case",       style="dim white",   min_width=28)
+
+    quality_styles = {
+        "excellent": "bold green", "very good": "green",
+        "good": "cyan", "fair": "yellow", "basic": "dim white",
+    }
+    for m in db.local_models:
+        vram_str = f"{m.vram_required_mb / 1024:.0f} GB" if m.vram_required_mb else "CPU only"
+        ram_str  = f"{m.ram_required_gb:.0f} GB"
+        q_style  = quality_styles.get(m.quality, "white")
+        local_table.add_row(
+            m.id,
+            m.display_name,
+            vram_str,
+            ram_str,
+            Text(m.quality.title(), style=q_style),
+            m.speed.title(),
+            m.use_case,
+        )
+    tables.append(("Local / Ollama", local_table))
+
+    return tables
+
+
+# ------------------------------------------------------------------
 # Alias table
 # ------------------------------------------------------------------
 

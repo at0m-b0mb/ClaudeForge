@@ -44,6 +44,28 @@
       "use_case": "minimal hardware, simple tasks"
     },
     {
+      "id": "phi3:3.8b",
+      "display_name": "Phi-3 Mini 3.8B",
+      "provider": "ollama",
+      "description": "Microsoft's compact model. Punches above its weight for reasoning.",
+      "vram_required_mb": 2800,
+      "ram_required_gb": 6,
+      "quality": "fair",
+      "speed": "very fast",
+      "use_case": "reasoning tasks on limited hardware"
+    },
+    {
+      "id": "gemma2:2b",
+      "display_name": "Gemma 2 2B",
+      "provider": "ollama",
+      "description": "Google's lightweight model with strong instruction following.",
+      "vram_required_mb": 2000,
+      "ram_required_gb": 5,
+      "quality": "fair",
+      "speed": "very fast",
+      "use_case": "instruction following, light Q&A"
+    },
+    {
       "id": "llama3.2:3b",
       "display_name": "Llama 3.2 3B",
       "provider": "ollama",
@@ -53,6 +75,17 @@
       "quality": "fair",
       "speed": "fast",
       "use_case": "light coding, Q&A"
+    },
+    {
+      "id": "mistral:7b",
+      "display_name": "Mistral 7B",
+      "provider": "ollama",
+      "description": "Fast and versatile. Strong baseline for general tasks.",
+      "vram_required_mb": 5000,
+      "ram_required_gb": 8,
+      "quality": "good",
+      "speed": "fast",
+      "use_case": "general tasks, chat, light coding"
     },
     {
       "id": "qwen2.5-coder:7b",
@@ -77,6 +110,50 @@
       "use_case": "general purpose, coding, Q&A"
     },
     {
+      "id": "gemma2:9b",
+      "display_name": "Gemma 2 9B",
+      "provider": "ollama",
+      "description": "Google's mid-size model. Excellent at following instructions.",
+      "vram_required_mb": 7000,
+      "ram_required_gb": 12,
+      "quality": "good",
+      "speed": "moderate",
+      "use_case": "instruction following, general tasks"
+    },
+    {
+      "id": "phi4:14b",
+      "display_name": "Phi-4 14B",
+      "provider": "ollama",
+      "description": "Microsoft's latest. Strong reasoning in a compact package.",
+      "vram_required_mb": 10000,
+      "ram_required_gb": 16,
+      "quality": "very good",
+      "speed": "moderate",
+      "use_case": "reasoning, STEM, coding"
+    },
+    {
+      "id": "mistral-nemo:12b",
+      "display_name": "Mistral Nemo 12B",
+      "provider": "ollama",
+      "description": "Mistral's versatile mid-size model with 128K context.",
+      "vram_required_mb": 9000,
+      "ram_required_gb": 14,
+      "quality": "very good",
+      "speed": "moderate",
+      "use_case": "long-context tasks, chat, coding"
+    },
+    {
+      "id": "qwen2.5-coder:14b",
+      "display_name": "Qwen 2.5 Coder 14B",
+      "provider": "ollama",
+      "description": "Larger code model. Better at complex codebases.",
+      "vram_required_mb": 10000,
+      "ram_required_gb": 16,
+      "quality": "very good",
+      "speed": "moderate",
+      "use_case": "complex coding, refactoring, debugging"
+    },
+    {
       "id": "deepseek-coder-v2:16b",
       "display_name": "DeepSeek Coder V2 16B",
       "provider": "ollama",
@@ -86,6 +163,61 @@
       "quality": "very good",
       "speed": "moderate",
       "use_case": "advanced coding tasks"
+    },
+    {
+      "id": "deepseek-r1:7b",
+      "display_name": "DeepSeek R1 7B",
+      "provider": "ollama",
+      "description": "Reasoning-focused model with chain-of-thought capability.",
+      "vram_required_mb": 6000,
+      "ram_required_gb": 10,
+      "quality": "good",
+      "speed": "moderate",
+      "use_case": "step-by-step reasoning, math, logic"
+    },
+    {
+      "id": "deepseek-r1:14b",
+      "display_name": "DeepSeek R1 14B",
+      "provider": "ollama",
+      "description": "Stronger reasoning model with extended chain-of-thought.",
+      "vram_required_mb": 10000,
+      "ram_required_gb": 16,
+      "quality": "very good",
+      "speed": "moderate",
+      "use_case": "complex reasoning, research, analysis"
+    },
+    {
+      "id": "qwen2.5-coder:32b",
+      "display_name": "Qwen 2.5 Coder 32B",
+      "provider": "ollama",
+      "description": "Top-tier coding model. Near-frontier code quality.",
+      "vram_required_mb": 22000,
+      "ram_required_gb": 36,
+      "quality": "excellent",
+      "speed": "slow",
+      "use_case": "production-level coding, large projects"
+    },
+    {
+      "id": "codestral:22b",
+      "display_name": "Codestral 22B",
+      "provider": "ollama",
+      "description": "Mistral's dedicated code model. Supports 80+ languages.",
+      "vram_required_mb": 16000,
+      "ram_required_gb": 24,
+      "quality": "excellent",
+      "speed": "moderate",
+      "use_case": "polyglot coding, code completion"
+    },
+    {
+      "id": "deepseek-r1:32b",
+      "display_name": "DeepSeek R1 32B",
+      "provider": "ollama",
+      "description": "High-quality reasoning model. Strong at complex problems.",
+      "vram_required_mb": 22000,
+      "ram_required_gb": 36,
+      "quality": "excellent",
+      "speed": "slow",
+      "use_case": "advanced reasoning, math, research"
     },
     {
       "id": "llama3.1:70b",
@@ -99,6 +231,17 @@
       "use_case": "complex reasoning, large projects"
     },
     {
+      "id": "qwen2.5:72b",
+      "display_name": "Qwen 2.5 72B",
+      "provider": "ollama",
+      "description": "Frontier-class general model from Alibaba.",
+      "vram_required_mb": 44000,
+      "ram_required_gb": 64,
+      "quality": "excellent",
+      "speed": "slow",
+      "use_case": "frontier-quality reasoning and coding"
+    },
+    {
       "id": "mixtral:8x7b",
       "display_name": "Mixtral 8x7B MoE",
       "provider": "ollama",
@@ -108,6 +251,17 @@
       "quality": "excellent",
       "speed": "moderate",
       "use_case": "diverse tasks, coding, reasoning"
+    },
+    {
+      "id": "llama3.3:70b",
+      "display_name": "Llama 3.3 70B",
+      "provider": "ollama",
+      "description": "Meta's latest large model. State-of-the-art open weights.",
+      "vram_required_mb": 42000,
+      "ram_required_gb": 64,
+      "quality": "excellent",
+      "speed": "slow",
+      "use_case": "best open-source quality for all tasks"
     }
   ]
 }
