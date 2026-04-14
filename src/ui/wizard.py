@@ -17,6 +17,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from ..hardware.detector import HardwareDetector
 from ..hardware.benchmark import Benchmarker
 from ..models.recommender import ModelRecommender
+from ..models.database import ModelDatabase
 from ..setup.prerequisites import PrerequisiteChecker
 from ..setup.node_installer import NodeInstaller
 from ..setup.claude_installer import ClaudeCodeInstaller
@@ -105,13 +106,42 @@ class SetupWizard:
     def run_recommendation(self):
         print_section(self.console, "Step 3 — Model Recommendation")
 
+        # ── Live model refresh ────────────────────────────────────────
+        self.console.print("[dim]Fetching latest model data from Anthropic and Ollama…[/dim]")
+        db = ModelDatabase()
+        try:
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            fetch_result = db.refresh(
+                api_key=api_key or None,
+                force=False,          # use cache if fresh
+                on_progress=lambda m: (
+                    None if self.quiet
+                    else print_info(self.console, m)
+                ),
+            )
+            src = fetch_result.source
+            err_count = len(fetch_result.errors)
+            if src == "api":
+                print_success(self.console, "Model data refreshed from live APIs.")
+            elif src == "cache":
+                print_info(self.console, "Using cached model data.")
+            else:
+                print_info(self.console, "Using built-in model catalog.")
+            if err_count and not self.quiet:
+                for e in fetch_result.errors:
+                    print_warning(self.console, f"  Fetch note: {e}")
+        except Exception as exc:
+            if not self.quiet:
+                print_warning(self.console, f"Could not refresh live models ({exc}); using built-in catalog.")
+        self.console.print()
+
         tier   = self.bench_result.tier   if self.bench_result else "mid"
         score  = self.bench_result.overall_score if self.bench_result else 50.0
         ram_gb = self.system_info.ram_total_gb if self.system_info else 8.0
         vram_mb= max((g.vram_mb for g in self.system_info.gpus), default=0) if self.system_info else 0
         apple  = self.system_info.cpu.is_apple_silicon if self.system_info else False
 
-        recommender = ModelRecommender()
+        recommender = ModelRecommender(db=db)
         self.recommendation = recommender.recommend(
             benchmark_tier=tier,
             overall_score=score,
@@ -292,22 +322,18 @@ class SetupWizard:
                 default="qwen2.5-coder:7b",
             ).strip() or "qwen2.5-coder:7b"
 
-        # ── litellm check ─────────────────────────────────────────────
+        # ── Ollama check ──────────────────────────────────────────────
         self.console.print()
-        if not mgr.check_litellm():
+        if not mgr.check_ollama():
             print_warning(
                 self.console,
-                "litellm is required to proxy Claude Code to Ollama.",
+                "Ollama is not installed. The alias will be created, but you need Ollama to use it.",
             )
-            if Confirm.ask("Install litellm[proxy] via pip now?", default=True):
-                ok = mgr.install_litellm()
-                if not ok:
-                    print_error(self.console, "litellm install failed. You can retry later: pip install litellm[proxy]")
-                    self.console.print("[dim]Alias will still be created; install litellm before using it.[/dim]")
-            else:
-                self.console.print("[dim]Skipping. Install litellm later: pip install litellm[proxy][/dim]")
+            self.console.print(
+                "  Install Ollama from: [bold cyan]https://ollama.ai[/bold cyan]"
+            )
         else:
-            print_success(self.console, "litellm is already installed.")
+            print_success(self.console, "Ollama is installed ✓")
 
         # ── Create alias ──────────────────────────────────────────────
         self.console.print()
@@ -316,7 +342,7 @@ class SetupWizard:
             print_success(self.console, f"Alias '{alias_name}' created successfully.")
             self.console.print(
                 f"\n  [dim]Cloud:[/dim]  [bold cyan]claude[/bold cyan]          → Anthropic API\n"
-                f"  [dim]Local:[/dim]  [bold cyan]{alias_name}[/bold cyan]  → Ollama / {model_id}"
+                f"  [dim]Local:[/dim]  [bold cyan]{alias_name}[/bold cyan]  → Ollama / {model_id}  [dim](direct, no proxy)[/dim]"
             )
             self._alias_created = (alias_name, model_id)
         else:

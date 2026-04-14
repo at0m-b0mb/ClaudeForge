@@ -7,11 +7,28 @@
       "description": "Fastest and most cost-effective Claude model. Excellent for everyday coding tasks, autocomplete, and high-throughput workloads.",
       "context_window": 200000,
       "output_tokens": 8192,
-      "strengths": ["speed", "cost", "everyday coding", "high throughput"],
-      "recommended_for": ["quick edits", "autocomplete", "low-budget setups", "real-time chat"],
+      "strengths": [
+        "speed",
+        "cost",
+        "everyday coding",
+        "high throughput"
+      ],
+      "recommended_for": [
+        "quick edits",
+        "autocomplete",
+        "low-budget setups",
+        "real-time chat"
+      ],
       "min_score": 0,
-      "pricing": {"input_per_mtok": 0.80, "output_per_mtok": 4.00},
-      "benchmark": {"mmlu": 75, "humaneval": 72, "swe_bench": 40}
+      "pricing": {
+        "input_per_mtok": 0.8,
+        "output_per_mtok": 4.0
+      },
+      "benchmark": {
+        "mmlu": 75,
+        "humaneval": 72,
+        "swe_bench": 40
+      }
     },
     {
       "id": "claude-3-5-sonnet-20241022",
@@ -20,11 +37,29 @@
       "description": "Industry-leading balance of intelligence and speed. Top-ranked for coding tasks on SWE-bench.",
       "context_window": 200000,
       "output_tokens": 8192,
-      "strengths": ["quality", "speed", "reasoning", "coding", "agentic tasks"],
-      "recommended_for": ["most projects", "complex debugging", "architecture", "agentic workflows"],
+      "strengths": [
+        "quality",
+        "speed",
+        "reasoning",
+        "coding",
+        "agentic tasks"
+      ],
+      "recommended_for": [
+        "most projects",
+        "complex debugging",
+        "architecture",
+        "agentic workflows"
+      ],
       "min_score": 0,
-      "pricing": {"input_per_mtok": 3.00, "output_per_mtok": 15.00},
-      "benchmark": {"mmlu": 88, "humaneval": 93, "swe_bench": 49}
+      "pricing": {
+        "input_per_mtok": 3.0,
+        "output_per_mtok": 15.0
+      },
+      "benchmark": {
+        "mmlu": 88,
+        "humaneval": 93,
+        "swe_bench": 49
+      }
     },
     {
       "id": "claude-3-7-sonnet-20250219",
@@ -33,11 +68,28 @@
       "description": "Anthropic's most intelligent model to date. Hybrid reasoning with optional extended thinking mode for hard problems.",
       "context_window": 200000,
       "output_tokens": 128000,
-      "strengths": ["extended thinking", "frontier reasoning", "coding", "research"],
-      "recommended_for": ["hardest coding tasks", "multi-step planning", "research", "math"],
+      "strengths": [
+        "extended thinking",
+        "frontier reasoning",
+        "coding",
+        "research"
+      ],
+      "recommended_for": [
+        "hardest coding tasks",
+        "multi-step planning",
+        "research",
+        "math"
+      ],
       "min_score": 0,
-      "pricing": {"input_per_mtok": 3.00, "output_per_mtok": 15.00},
-      "benchmark": {"mmlu": 90, "humaneval": 96, "swe_bench": 62}
+      "pricing": {
+        "input_per_mtok": 3.0,
+        "output_per_mtok": 15.0
+      },
+      "benchmark": {
+        "mmlu": 90,
+        "humaneval": 96,
+        "swe_bench": 62
+      }
     },
     {
       "id": "claude-opus-4-5",
@@ -46,14 +98,32 @@
       "description": "Most powerful Claude model for highly complex reasoning, large-scale analysis, and the highest quality output.",
       "context_window": 200000,
       "output_tokens": 32000,
-      "strengths": ["intelligence", "complex reasoning", "research", "synthesis"],
-      "recommended_for": ["hard problems", "large codebases", "planning", "highest quality"],
+      "strengths": [
+        "intelligence",
+        "complex reasoning",
+        "research",
+        "synthesis"
+      ],
+      "recommended_for": [
+        "hard problems",
+        "large codebases",
+        "planning",
+        "highest quality"
+      ],
       "min_score": 0,
-      "pricing": {"input_per_mtok": 15.00, "output_per_mtok": 75.00},
-      "benchmark": {"mmlu": 92, "humaneval": 95, "swe_bench": 55}
+      "pricing": {
+        "input_per_mtok": 15.0,
+        "output_per_mtok": 75.0
+      },
+      "benchmark": {
+        "mmlu": 92,
+        "humaneval": 95,
+        "swe_bench": 55
+      }
     }
   ],
-  "local_models": [
+  "ollama_installed": [],
+  "ollama_library": [
     {
       "id": "llama3.2:1b",
       "display_name": "Llama 3.2 1B",
@@ -64,7 +134,10 @@
       "quality": "basic",
       "speed": "very fast",
       "use_case": "minimal hardware, simple tasks",
-      "benchmark": {"mmlu": 41, "humaneval": 28},
+      "benchmark": {
+        "mmlu": 41,
+        "humaneval": 28
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull llama3.2:1b"
     },
@@ -78,7 +151,10 @@
       "quality": "fair",
       "speed": "very fast",
       "use_case": "reasoning tasks on limited hardware",
-      "benchmark": {"mmlu": 68, "humaneval": 55},
+      "benchmark": {
+        "mmlu": 68,
+        "humaneval": 55
+      },
       "context_window": 128000,
       "ollama_pull": "ollama pull phi3:3.8b"
     },
@@ -92,7 +168,10 @@
       "quality": "fair",
       "speed": "very fast",
       "use_case": "instruction following, multilingual, light Q&A",
-      "benchmark": {"mmlu": 72, "humaneval": 58},
+      "benchmark": {
+        "mmlu": 72,
+        "humaneval": 58
+      },
       "context_window": 128000,
       "ollama_pull": "ollama pull gemma3:4b"
     },
@@ -106,7 +185,10 @@
       "quality": "fair",
       "speed": "fast",
       "use_case": "light coding, Q&A",
-      "benchmark": {"mmlu": 58, "humaneval": 43},
+      "benchmark": {
+        "mmlu": 58,
+        "humaneval": 43
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull llama3.2:3b"
     },
@@ -120,7 +202,10 @@
       "quality": "good",
       "speed": "fast",
       "use_case": "general tasks, chat, light coding",
-      "benchmark": {"mmlu": 62, "humaneval": 48},
+      "benchmark": {
+        "mmlu": 62,
+        "humaneval": 48
+      },
       "context_window": 32768,
       "ollama_pull": "ollama pull mistral:7b"
     },
@@ -134,7 +219,10 @@
       "quality": "good",
       "speed": "fast",
       "use_case": "coding assistance, code completion, debugging",
-      "benchmark": {"mmlu": 71, "humaneval": 82},
+      "benchmark": {
+        "mmlu": 71,
+        "humaneval": 82
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull qwen2.5-coder:7b"
     },
@@ -148,7 +236,10 @@
       "quality": "good",
       "speed": "moderate",
       "use_case": "general purpose, coding, Q&A",
-      "benchmark": {"mmlu": 73, "humaneval": 60},
+      "benchmark": {
+        "mmlu": 73,
+        "humaneval": 60
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull llama3.1:8b"
     },
@@ -162,7 +253,10 @@
       "quality": "good",
       "speed": "moderate",
       "use_case": "instruction following, general tasks, vision (multimodal)",
-      "benchmark": {"mmlu": 76, "humaneval": 64},
+      "benchmark": {
+        "mmlu": 76,
+        "humaneval": 64
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull gemma3:9b"
     },
@@ -176,7 +270,10 @@
       "quality": "very good",
       "speed": "moderate",
       "use_case": "reasoning, STEM, coding",
-      "benchmark": {"mmlu": 84, "humaneval": 80},
+      "benchmark": {
+        "mmlu": 84,
+        "humaneval": 80
+      },
       "context_window": 16384,
       "ollama_pull": "ollama pull phi4:14b"
     },
@@ -190,7 +287,10 @@
       "quality": "very good",
       "speed": "moderate",
       "use_case": "long-context tasks, chat, coding",
-      "benchmark": {"mmlu": 71, "humaneval": 62},
+      "benchmark": {
+        "mmlu": 71,
+        "humaneval": 62
+      },
       "context_window": 128000,
       "ollama_pull": "ollama pull mistral-nemo:12b"
     },
@@ -204,7 +304,10 @@
       "quality": "very good",
       "speed": "moderate",
       "use_case": "complex coding, refactoring, debugging",
-      "benchmark": {"mmlu": 78, "humaneval": 88},
+      "benchmark": {
+        "mmlu": 78,
+        "humaneval": 88
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull qwen2.5-coder:14b"
     },
@@ -218,7 +321,10 @@
       "quality": "good",
       "speed": "moderate",
       "use_case": "step-by-step reasoning, math, logic",
-      "benchmark": {"mmlu": 71, "humaneval": 70},
+      "benchmark": {
+        "mmlu": 71,
+        "humaneval": 70
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull deepseek-r1:7b"
     },
@@ -232,7 +338,10 @@
       "quality": "very good",
       "speed": "moderate",
       "use_case": "complex reasoning, research, analysis",
-      "benchmark": {"mmlu": 79, "humaneval": 78},
+      "benchmark": {
+        "mmlu": 79,
+        "humaneval": 78
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull deepseek-r1:14b"
     },
@@ -246,7 +355,10 @@
       "quality": "excellent",
       "speed": "slow",
       "use_case": "production-level coding, large projects",
-      "benchmark": {"mmlu": 83, "humaneval": 92},
+      "benchmark": {
+        "mmlu": 83,
+        "humaneval": 92
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull qwen2.5-coder:32b"
     },
@@ -260,7 +372,10 @@
       "quality": "excellent",
       "speed": "moderate",
       "use_case": "top open-source quality, vision, coding, reasoning",
-      "benchmark": {"mmlu": 87, "humaneval": 89},
+      "benchmark": {
+        "mmlu": 87,
+        "humaneval": 89
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull gemma3:27b"
     },
@@ -274,7 +389,10 @@
       "quality": "excellent",
       "speed": "moderate",
       "use_case": "polyglot coding, code completion, fill-in-the-middle",
-      "benchmark": {"mmlu": 78, "humaneval": 90},
+      "benchmark": {
+        "mmlu": 78,
+        "humaneval": 90
+      },
       "context_window": 32768,
       "ollama_pull": "ollama pull codestral:22b"
     },
@@ -288,7 +406,10 @@
       "quality": "excellent",
       "speed": "slow",
       "use_case": "advanced reasoning, math, research",
-      "benchmark": {"mmlu": 87, "humaneval": 88},
+      "benchmark": {
+        "mmlu": 87,
+        "humaneval": 88
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull deepseek-r1:32b"
     },
@@ -302,7 +423,10 @@
       "quality": "excellent",
       "speed": "slow",
       "use_case": "best open-source quality for all tasks",
-      "benchmark": {"mmlu": 88, "humaneval": 85},
+      "benchmark": {
+        "mmlu": 88,
+        "humaneval": 85
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull llama3.3:70b"
     },
@@ -316,7 +440,10 @@
       "quality": "excellent",
       "speed": "slow",
       "use_case": "frontier-quality reasoning and coding",
-      "benchmark": {"mmlu": 88, "humaneval": 87},
+      "benchmark": {
+        "mmlu": 88,
+        "humaneval": 87
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull qwen2.5:72b"
     },
@@ -330,9 +457,13 @@
       "quality": "excellent",
       "speed": "slow",
       "use_case": "frontier reasoning, math olympiad, complex analysis",
-      "benchmark": {"mmlu": 91, "humaneval": 90},
+      "benchmark": {
+        "mmlu": 91,
+        "humaneval": 90
+      },
       "context_window": 131072,
       "ollama_pull": "ollama pull deepseek-r1:70b"
     }
-  ]
+  ],
+  "fetched_at": 1776206031.1447854
 }

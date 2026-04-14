@@ -21,9 +21,12 @@ class ClaudeAPIModel:
     tier: str
     description: str
     context_window: int
+    output_tokens: int
     strengths: List[str]
     recommended_for: List[str]
     min_score: int
+    pricing: dict
+    benchmark: dict   # {"mmlu": int, "humaneval": int, "swe_bench": int}
 
 
 @dataclass
@@ -37,6 +40,9 @@ class LocalModel:
     quality: str
     speed: str
     use_case: str
+    benchmark: dict   # {"mmlu": int, "humaneval": int}
+    context_window: int
+    ollama_pull: str
 
 
 def _load_static() -> dict:
@@ -51,9 +57,12 @@ def _to_api_model(d: dict) -> ClaudeAPIModel:
         tier           = d.get("tier", "unknown"),
         description    = d.get("description", ""),
         context_window = int(d.get("context_window", 200000)),
+        output_tokens  = int(d.get("output_tokens", 8192)),
         strengths      = d.get("strengths", []),
         recommended_for= d.get("recommended_for", []),
         min_score      = int(d.get("min_score", 0)),
+        pricing        = d.get("pricing", {}),
+        benchmark      = d.get("benchmark", {}),
     )
 
 
@@ -68,6 +77,9 @@ def _to_local_model(d: dict) -> LocalModel:
         quality         = d.get("quality", "unknown"),
         speed           = d.get("speed", "moderate"),
         use_case        = d.get("use_case", ""),
+        benchmark       = d.get("benchmark", {}),
+        context_window  = int(d.get("context_window", 4096)),
+        ollama_pull     = d.get("ollama_pull", f"ollama pull {d.get('id', '')}"),
     )
 
 

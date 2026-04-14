@@ -198,30 +198,37 @@ def cmd_alias(args):
         return
 
     # ── Create ────────────────────────────────────────────────────────
-    alias_name = args.name or DEFAULT_ALIAS
+    from src.setup.alias_manager import OLLAMA_BASE_URL
+    alias_name = args.name  or DEFAULT_ALIAS
     model_id   = args.model or "qwen2.5-coder:7b"
-    proxy_port = args.port or 4001
+    ollama_url = args.url   or OLLAMA_BASE_URL
 
     print_section(console, f"Create Alias: {alias_name}")
     console.print(
         f"  Cloud command : [bold cyan]claude[/bold cyan]  → Anthropic API\n"
-        f"  Local command : [bold cyan]{alias_name}[/bold cyan]  → Ollama / {model_id}\n"
+        f"  Local command : [bold cyan]{alias_name}[/bold cyan]  → Ollama / {model_id}  (direct)\n"
     )
 
-    # litellm check
-    if not mgr.check_litellm():
-        print_warning(console, "litellm is not installed (required for the proxy).")
-        console.print("  Install it with:  [bold]pip install litellm[proxy][/bold]")
+    # Dependency checks
+    if not mgr.check_ollama():
+        print_warning(console, "Ollama is not installed or not on PATH.")
+        console.print("  Install it from: [bold]https://ollama.ai[/bold]")
         console.print()
 
-    info = mgr.create(alias_name=alias_name, model_id=model_id, proxy_port=proxy_port)
+    if not mgr.check_node():
+        print_warning(console, "Node.js is not installed (needed to run Claude Code).")
+        console.print("  Install it from: [bold]https://nodejs.org[/bold]")
+        console.print()
+
+    info = mgr.create(alias_name=alias_name, model_id=model_id, ollama_url=ollama_url)
     if info:
         print_success(console, f"Alias '{alias_name}' installed at {info.wrapper_path}")
         console.print()
         console.print("  [bold]Usage:[/bold]")
         console.print(f"    [bold cyan]claude[/bold cyan]         — uses Anthropic cloud (unchanged)")
-        console.print(f"    [bold cyan]{alias_name}[/bold cyan]  — uses Ollama / {model_id} locally")
+        console.print(f"    [bold cyan]{alias_name}[/bold cyan]  — uses Ollama / {model_id} directly")
         console.print()
+        console.print(f"  [dim]Ollama API: {ollama_url}  (no proxy needed)[/dim]")
         console.print("  [dim]Reload your shell (or open a new terminal) to activate the alias.[/dim]")
     else:
         print_error(console, "Failed to create alias.")
@@ -304,8 +311,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Ollama model ID to use (default: qwen2.5-coder:7b).",
     )
     alias_group.add_argument(
-        "--alias-port", dest="port", metavar="PORT", type=int, default=None,
-        help="Proxy port for litellm (default: 4001).",
+        "--alias-url", dest="url", metavar="URL", default=None,
+        help="Ollama base URL (default: http://localhost:11434).",
     )
     alias_group.add_argument(
         "--alias-list", dest="list", action="store_true",

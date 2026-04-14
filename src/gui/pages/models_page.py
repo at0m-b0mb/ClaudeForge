@@ -131,6 +131,21 @@ class ModelsPage(BasePage):
         from ...models.database import ModelDatabase
         db = ModelDatabase()
 
+        # Refresh button + source label
+        refresh_row = ctk.CTkFrame(self._browse_content, fg_color="transparent")
+        refresh_row.pack(fill="x", pady=(0, 12))
+        self._src_label = dim_label(refresh_row,
+            f"Data source: {db.last_fetch_source()}  ·  Click to refresh from live APIs",
+            size=11)
+        self._src_label.pack(side="left")
+        ctk.CTkButton(
+            refresh_row, text="⟳ Refresh Models", width=130, height=28,
+            fg_color=C["card"], hover_color=C["border"],
+            text_color=C["accent"], border_width=1, border_color=C["border"],
+            corner_radius=8, font=ctk.CTkFont(size=11),
+            command=self._do_refresh_models,
+        ).pack(side="right")
+
         # ── Claude API models ─────────────────────────────────────────
         label(self._browse_content, "Claude API Models",
               size=15, weight="bold").pack(anchor="w", pady=(0, 10))
@@ -151,7 +166,22 @@ class ModelsPage(BasePage):
                          text_color=tc).pack(side="left", pady=2)
 
             dim_label(left, m.description, size=12).pack(anchor="w", pady=(2, 0))
-            dim_label(left, f"ID: {m.id}  ·  Context: {m.context_window // 1000}K tokens  ·  Best for: {', '.join(m.recommended_for)}", size=11).pack(anchor="w")
+
+            # Requirements + benchmark row
+            meta_row = ctk.CTkFrame(left, fg_color="transparent")
+            meta_row.pack(anchor="w", pady=(3, 0))
+            ctx_str   = f"{m.context_window // 1000}K ctx"
+            out_str   = f"{m.output_tokens // 1000}K output"
+            bench     = m.benchmark
+            bench_str = f"HumanEval {bench.get('humaneval', '?')}%" if bench else ""
+            swe_str   = f"SWE-bench {bench.get('swe_bench', '?')}%" if bench and 'swe_bench' in bench else ""
+            for piece in [m.id, ctx_str, out_str, bench_str, swe_str]:
+                if not piece:
+                    continue
+                ctk.CTkLabel(meta_row, text=f" {piece} ",
+                             font=ctk.CTkFont(size=10),
+                             text_color=C["dim"], fg_color=C["card"],
+                             corner_radius=4).pack(side="left", padx=2)
 
             right = ctk.CTkFrame(row_card, fg_color="transparent")
             right.pack(side="right", padx=16, pady=12)
@@ -160,6 +190,10 @@ class ModelsPage(BasePage):
                              font=ctk.CTkFont(size=10),
                              text_color=C["accent"], fg_color="#1a2a28",
                              corner_radius=4).pack(anchor="e", pady=1)
+            if m.pricing:
+                inp = m.pricing.get("input_per_mtok", 0)
+                out = m.pricing.get("output_per_mtok", 0)
+                dim_label(right, f"${inp:.2f} / ${out:.2f} per MTok", size=10).pack(anchor="e", pady=(4, 0))
 
         # ── Local / Ollama models ─────────────────────────────────────
         label(self._browse_content, "Local Models  (via Ollama)",
@@ -188,7 +222,13 @@ class ModelsPage(BasePage):
             meta_row = ctk.CTkFrame(left, fg_color="transparent")
             meta_row.pack(anchor="w", pady=(3, 0))
             vram_str = f"{m.vram_required_mb / 1024:.0f} GB VRAM" if m.vram_required_mb else "CPU only"
-            for piece in [f"ID: {m.id}", f"{vram_str}", f"{m.ram_required_gb:.0f} GB RAM", m.speed.title()]:
+            ctx_str  = f"{m.context_window // 1000}K ctx" if m.context_window else ""
+            bench    = m.benchmark
+            he_str   = f"HumanEval {bench.get('humaneval', '?')}%" if bench else ""
+            for piece in [f"ID: {m.id}", vram_str, f"{m.ram_required_gb:.0f} GB RAM",
+                          m.speed.title(), ctx_str, he_str]:
+                if not piece:
+                    continue
                 ctk.CTkLabel(meta_row, text=f" {piece} ",
                              font=ctk.CTkFont(size=10),
                              text_color=C["dim"], fg_color=C["card"],
@@ -197,9 +237,45 @@ class ModelsPage(BasePage):
             right = ctk.CTkFrame(row_card, fg_color="transparent")
             right.pack(side="right", padx=16, pady=12)
             dim_label(right, m.use_case, size=11, wraplength=160).pack(anchor="e")
+            if m.ollama_pull:
+                dim_label(right, m.ollama_pull, size=10).pack(anchor="e", pady=(4, 0))
 
         # bottom padding
         ctk.CTkFrame(self._browse_content, fg_color="transparent", height=24).pack()
+
+    def _do_refresh_models(self):
+        """Fetch live model data from Anthropic + Ollama in a background thread."""
+        import threading
+        if hasattr(self, "_src_label"):
+            self._src_label.configure(text="Fetching live model data…")
+
+        def _update_status(msg: str):
+            if hasattr(self, "_src_label"):
+                self._src_label.configure(text=msg)
+
+        def _run():
+            try:
+                from ...models.database import ModelDatabase
+                db = ModelDatabase()
+                result = db.refresh(
+                    api_key=None,
+                    force=True,
+                    on_progress=lambda m: self.app.after(0, lambda msg=m: _update_status(msg)),
+                )
+                self.app.after(0, lambda: self._on_refresh_done(result))
+            except Exception as exc:
+                self.app.after(0, lambda e=exc: _update_status(f"Refresh failed: {e}"))
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _on_refresh_done(self, result):
+        errors = ", ".join(result.errors) if result.errors else ""
+        src_msg = f"Data source: {result.source}"
+        if errors:
+            src_msg += f"  ·  {errors}"
+        if hasattr(self, "_src_label"):
+            self._src_label.configure(text=src_msg)
+        # Re-build the browse panel with fresh data
+        self._build_browse()
 
     def _refresh(self):
         if not self.app.bench_result or not self.app.system_info:

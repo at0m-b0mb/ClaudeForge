@@ -1,5 +1,6 @@
 """
 Alias Manager page — create, view, and delete claude-local aliases.
+Uses Ollama's native Anthropic-compatible API — no proxy, no extra packages.
 """
 
 import threading
@@ -26,7 +27,7 @@ class AliasRow(ctk.CTkFrame):
         else:
             badge(name_row, "not on PATH", C["yellow"]).pack(side="left", padx=8)
 
-        dim_label(left, f"Model: {status.model_id}   Port: {status.proxy_port}").pack(anchor="w", pady=(2, 0))
+        dim_label(left, f"Model: {status.model_id}   Ollama: {status.ollama_url}").pack(anchor="w", pady=(2, 0))
         dim_label(left, status.wrapper_path, size=10).pack(anchor="w")
 
         ctk.CTkButton(
@@ -54,7 +55,7 @@ class AliasPage(BasePage):
     def _build(self):
         self.page_header(
             "Alias Manager",
-            "Create a separate command that routes Claude Code to a local Ollama model.",
+            "Create a local command that routes Claude Code directly to Ollama — no proxy needed.",
         )
         outer = ctk.CTkFrame(self, fg_color="transparent")
         outer.pack(fill="both", expand=True, padx=28)
@@ -78,18 +79,28 @@ class AliasPage(BasePage):
         self._list_frame = ctk.CTkFrame(left, fg_color="transparent")
         self._list_frame.pack(fill="x")
 
-        # Explanation
+        # How-it-works card
         info_card = card_frame(left)
         info_card.pack(fill="x", pady=(16, 0))
+        ctk.CTkLabel(
+            info_card, text="⚡  How it works",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=C["accent"],
+        ).pack(anchor="w", padx=16, pady=(12, 4))
         rows = [
             ("claude",       "→  Anthropic cloud API  (unchanged)"),
-            ("claude-local", "→  Ollama / local model  (via proxy)"),
+            ("claude-local", "→  Ollama direct  (ANTHROPIC_BASE_URL=http://localhost:11434)"),
         ]
         for cmd, desc in rows:
             r = ctk.CTkFrame(info_card, fg_color="transparent")
-            r.pack(fill="x", padx=16, pady=5)
+            r.pack(fill="x", padx=16, pady=4)
             label(r, cmd, size=13, weight="bold", color=C["accent"]).pack(side="left")
             dim_label(r, f"  {desc}", size=12).pack(side="left")
+        dim_label(
+            info_card,
+            "Ollama's native Anthropic API — no proxy or extra packages required.",
+            size=11, wraplength=380,
+        ).pack(anchor="w", padx=16, pady=(4, 12))
 
         # ── Right: create form ────────────────────────────────────────
         form_card = card_frame(outer)
@@ -105,7 +116,7 @@ class AliasPage(BasePage):
         label(form_card, "Ollama Model", size=12, color=C["dim"]).pack(anchor="w", padx=16, pady=(8, 2))
         self._model_combo = ctk.CTkComboBox(
             form_card,
-            values=local_models or ["qwen2.5-coder:7b", "llama3.1:8b", "llama3.2:3b"],
+            values=local_models or ["qwen2.5-coder:7b", "llama3.1:8b", "deepseek-r1:7b", "gemma3:4b"],
             fg_color=C["bg"], border_color=C["border"],
             button_color=C["accent"], button_hover_color=C["accent_dk"],
             dropdown_fg_color=C["card"], dropdown_hover_color=C["border"],
@@ -115,23 +126,28 @@ class AliasPage(BasePage):
         self._model_combo.pack(anchor="w", padx=16)
         dim_label(form_card, "Or type any Ollama model ID above", size=10).pack(anchor="w", padx=16, pady=(2, 0))
 
-        # Port
-        self._port_entry = self._form_field(form_card, "Proxy Port", "4001")
+        # Ollama URL
+        self._url_entry = self._form_field(form_card, "Ollama URL", "http://localhost:11434")
 
-        # litellm status
-        litellm_ok = shutil.which("litellm") is not None
-        self._litellm_status = status_dot(form_card, litellm_ok,
-                                           "litellm installed" if litellm_ok else "litellm missing")
-        self._litellm_status.pack(anchor="w", padx=16, pady=(10, 4))
-        if not litellm_ok:
-            install_lit = ctk.CTkButton(
-                form_card, text="Install litellm",
+        # Dependency status
+        ollama_ok = shutil.which("ollama") is not None
+        node_ok   = shutil.which("node") is not None
+
+        status_frame = ctk.CTkFrame(form_card, fg_color="transparent")
+        status_frame.pack(anchor="w", padx=16, pady=(12, 4))
+        status_dot(status_frame, ollama_ok,
+                   "Ollama installed" if ollama_ok else "Ollama not found — install from ollama.ai").pack(anchor="w", pady=2)
+        status_dot(status_frame, node_ok,
+                   "Node.js installed" if node_ok else "Node.js not found — needed for Claude Code").pack(anchor="w", pady=2)
+
+        if not ollama_ok:
+            ctk.CTkButton(
+                form_card, text="Get Ollama →",
                 fg_color="transparent", text_color=C["accent"],
                 hover_color=C["nav_hover"], font=ctk.CTkFont(size=11),
                 corner_radius=4, height=24,
-                command=self._install_litellm,
-            )
-            install_lit.pack(anchor="w", padx=14)
+                command=lambda: __import__("webbrowser").open("https://ollama.ai"),
+            ).pack(anchor="w", padx=14)
 
         self._create_status = dim_label(form_card, "")
         self._create_status.pack(anchor="w", padx=16, pady=(6, 4))
@@ -173,17 +189,14 @@ class AliasPage(BasePage):
         from ...setup.alias_manager import AliasManager
         name  = self._name_entry.get().strip() or "claude-local"
         model = self._model_combo.get().strip() or "qwen2.5-coder:7b"
-        try:
-            port = int(self._port_entry.get().strip() or "4001")
-        except ValueError:
-            port = 4001
+        url   = self._url_entry.get().strip() or "http://localhost:11434"
 
         self._create_status.configure(text="Creating…", text_color=C["dim"])
         self._create_btn.configure(state="disabled")
 
         def _run():
-            mgr = AliasManager(on_log=lambda m: None)
-            info = mgr.create(alias_name=name, model_id=model, proxy_port=port)
+            mgr  = AliasManager(on_log=lambda m: None)
+            info = mgr.create(alias_name=name, model_id=model, ollama_url=url)
             self.app.after(0, lambda: self._on_create_done(info, name))
         threading.Thread(target=_run, daemon=True).start()
 
@@ -202,16 +215,6 @@ class AliasPage(BasePage):
         AliasManager().remove(alias_name)
         self._refresh_list()
 
-    def _install_litellm(self):
-        def _run():
-            from ...setup.alias_manager import AliasManager
-            mgr = AliasManager()
-            ok = mgr.install_litellm()
-            self.app.after(0, lambda: self._litellm_status.configure(
-                text="  litellm installed" if ok else "  install failed"
-            ))
-        threading.Thread(target=_run, daemon=True).start()
-
     def _get_local_model_ids(self):
         """Pull Ollama model list if Ollama is available."""
         if not shutil.which("ollama"):
@@ -221,7 +224,7 @@ class AliasPage(BasePage):
             r = subprocess.run(["ollama", "list"], capture_output=True, text=True, timeout=5)
             if r.returncode == 0:
                 lines = r.stdout.strip().splitlines()[1:]  # skip header
-                return [l.split()[0] for l in lines if l.strip()]
+                return [line.split()[0] for line in lines if line.strip()]
         except Exception:
             pass
         return []

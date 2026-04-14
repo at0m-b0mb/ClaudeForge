@@ -289,7 +289,7 @@ def alias_table(statuses: list) -> Table:
     t = Table(title="Local Aliases", box=box.ROUNDED, header_style="bold cyan")
     t.add_column("Alias", style="bold white", min_width=16)
     t.add_column("Model", style="yellow", min_width=22)
-    t.add_column("Port", justify="right", min_width=6)
+    t.add_column("Ollama URL", style="dim white", min_width=26)
     t.add_column("On PATH", justify="center", min_width=8)
     t.add_column("Wrapper")
 
@@ -298,7 +298,7 @@ def alias_table(statuses: list) -> Table:
         t.add_row(
             s.alias_name,
             s.model_id,
-            str(s.proxy_port),
+            s.ollama_url,
             on_path_text,
             s.wrapper_path,
         )

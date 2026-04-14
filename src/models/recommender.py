@@ -5,7 +5,7 @@ Takes hardware specs + benchmark results and recommends the best Claude/local mo
 
 from dataclasses import dataclass
 from typing import List, Optional
-from .database import ModelDatabase, ClaudeAPIModel, LocalModel
+from .database import ClaudeAPIModel, LocalModel
 
 
 @dataclass
@@ -28,8 +28,9 @@ class ModelRecommender:
     - local_preferred: High-end GPU (>16 GB VRAM). Local models are first-class.
     """
 
-    def __init__(self):
-        self.db = ModelDatabase()
+    def __init__(self, db=None):
+        from .database import ModelDatabase
+        self.db = db if db is not None else ModelDatabase()
 
     def recommend(
         self,
@@ -77,9 +78,17 @@ class ModelRecommender:
 
     def _choose_api_models(self, tier: str, score: float):
         models = self.db.claude_api_models
-        sonnet = next((m for m in models if "sonnet" in m.id), models[1])
-        haiku  = next((m for m in models if "haiku"  in m.id), models[0])
-        opus   = next((m for m in models if "opus"   in m.id), models[-1])
+        if not models:
+            raise ValueError("No Claude API models available in the database.")
+
+        # Use named fallbacks so index access never crashes on short lists
+        _first  = models[0]
+        _last   = models[-1]
+        _second = models[1] if len(models) > 1 else _first
+
+        sonnet = next((m for m in models if "sonnet" in m.id), _second)
+        haiku  = next((m for m in models if "haiku"  in m.id), _first)
+        opus   = next((m for m in models if "opus"   in m.id), _last)
 
         # Sonnet is always the recommended default for Claude Code
         # Haiku is offered as an alternative for speed / cost
@@ -153,8 +162,8 @@ class ModelRecommender:
     ) -> List[str]:
         tips = []
         if strategy == "api_only":
-            tips.append("Use claude-sonnet-4-6 for the best quality/speed tradeoff.")
-            tips.append("Switch to claude-haiku-4-5 for faster, cheaper responses.")
+            tips.append("Use claude-3-7-sonnet-20250219 for the best quality/speed tradeoff.")
+            tips.append("Switch to claude-3-5-haiku-20241022 for faster, cheaper responses.")
             tips.append("Consider upgrading to a machine with a discrete GPU to run local models.")
         if strategy == "local_capable":
             tips.append("Install Ollama to run local models: https://ollama.ai")
@@ -162,7 +171,7 @@ class ModelRecommender:
             tips.append("qwen2.5-coder is optimised for code — try it first.")
         if strategy == "local_preferred":
             tips.append("Install Ollama and pull your preferred model: `ollama pull <model>`.")
-            tips.append("Set OLLAMA_HOST and configure Claude Code to use your local endpoint.")
+            tips.append("Use ClaudeForge Aliases to create a `claude-local` command pointing at Ollama.")
             tips.append("Keep the Claude API as a fallback for the hardest tasks.")
         if apple_silicon:
             tips.append("Ollama uses Metal acceleration automatically on Apple Silicon — no setup needed.")
