@@ -12,6 +12,11 @@ STRATEGY_DESC = {
     "local_preferred": ("🖥  Local-First Mode", C["purple"],  "Your GPU can run large models locally for full privacy."),
 }
 
+# When no GPU is present, a model is considered runnable on CPU only if its
+# declared RAM requirement fits within this fraction of total system RAM.
+# The 0.6 factor (60 %) leaves headroom for the OS and other processes.
+_CPU_ONLY_RAM_FACTOR = 0.6
+
 
 class ModelCard(ctk.CTkFrame):
     def __init__(self, parent, name, desc, tags, highlight=False, **kw):
@@ -233,7 +238,7 @@ class ModelsPage(BasePage):
                     is_compatible = (m.vram_required_mb <= vram_mb
                                      and m.ram_required_gb <= ram_gb)
                 else:
-                    is_compatible = m.ram_required_gb <= ram_gb * 0.6
+                    is_compatible = m.ram_required_gb <= ram_gb * _CPU_ONLY_RAM_FACTOR
 
             row_card = card_frame(
                 self._browse_content,
@@ -352,21 +357,21 @@ class ModelsPage(BasePage):
 
         def _run():
             try:
-                import subprocess
+                from ...setup.alias_manager import AliasManager
                 self.app.after(0, lambda: _update_status(f"Deleting {model_id}…"))
-                r = subprocess.run(
-                    ["ollama", "rm", model_id],
-                    capture_output=True, text=True, timeout=60,
-                )
-                if r.returncode == 0:
+                ok = AliasManager(
+                    on_log=lambda m: self.app.after(0, lambda msg=m: _update_status(msg))
+                ).delete_model(model_id)
+                if ok:
                     self.app.after(0, lambda: _update_status(
                         f"Deleted {model_id}. Refreshing list…"
                     ))
                     # Force-refresh so the deleted model is no longer shown
                     self.app.after(200, lambda: self._do_refresh_models(force=True))
                 else:
-                    err = (r.stderr or r.stdout).strip()
-                    self.app.after(0, lambda e=err: _update_status(f"Delete failed: {e}"))
+                    self.app.after(0, lambda: _update_status(
+                        f"Delete failed for {model_id}. Is Ollama running?"
+                    ))
             except Exception as exc:
                 self.app.after(0, lambda e=exc: _update_status(f"Delete failed: {e}"))
         threading.Thread(target=_run, daemon=True).start()
