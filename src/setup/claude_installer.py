@@ -27,12 +27,18 @@ def _nvm_node_env() -> dict:
     nvm_sh = os.path.join(nvm_dir, "nvm.sh")
     if not os.path.isfile(nvm_sh):
         return {}
-    ok, out = _run([
-        "bash", "-c",
-        f'export NVM_DIR="{nvm_dir}" && . "{nvm_sh}" && echo $PATH'
-    ])
-    if ok and out:
-        return {"PATH": out.strip()}
+    # Use subprocess directly so we can read only stdout (nvm may write
+    # informational messages to stderr which would corrupt the PATH value).
+    try:
+        r = subprocess.run(
+            ["bash", "-c",
+             f'export NVM_DIR="{nvm_dir}" && . "{nvm_sh}" && echo $PATH'],
+            capture_output=True, text=True, timeout=15,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return {"PATH": r.stdout.strip()}
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        pass
     return {}
 
 

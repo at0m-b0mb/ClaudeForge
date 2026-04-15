@@ -47,6 +47,8 @@ class ModelsPage(BasePage):
     def __init__(self, parent, app):
         super().__init__(parent, app)
         self._built = False
+        self._current_db = None       # Most recently refreshed ModelDatabase
+        self._browse_refreshed = False  # True after the first live Ollama fetch
 
     def on_show(self):
         if not self._built:
@@ -122,28 +124,46 @@ class ModelsPage(BasePage):
             self._run_btn.pack_forget()
             self._browse_content.pack(fill="both", expand=True, padx=28)
             self._build_browse()
+            # Auto-refresh from Ollama the first time the browse tab is opened
+            if not self._browse_refreshed:
+                self._browse_refreshed = True
+                self._do_refresh_models(force=False)
 
-    def _build_browse(self):
+    def _build_browse(self, db=None):
         """Populate the Browse All Models frame (idempotent)."""
         for w in self._browse_content.winfo_children():
             w.destroy()
 
         from ...models.database import ModelDatabase
-        db = ModelDatabase()
+        if db is None:
+            db = self._current_db if self._current_db is not None else ModelDatabase()
+        self._current_db = db
+
+        # Get installed model IDs and hardware info for compatibility checks
+        installed_ids = set(db.installed_model_ids())
+        system_info = self.app.system_info
+        if system_info:
+            vram_mb = max((g.vram_mb for g in system_info.gpus), default=0)
+            ram_gb  = system_info.ram_total_gb
+        else:
+            vram_mb = None
+            ram_gb  = None
 
         # Refresh button + source label
         refresh_row = ctk.CTkFrame(self._browse_content, fg_color="transparent")
         refresh_row.pack(fill="x", pady=(0, 12))
-        self._src_label = dim_label(refresh_row,
-            f"Data source: {db.last_fetch_source()}  ·  Click to refresh from live APIs",
-            size=11)
+        src_text = f"Data source: {db.last_fetch_source()}"
+        if installed_ids:
+            src_text += f"  ·  {len(installed_ids)} installed locally"
+        src_text += "  ·  Click to refresh from Ollama"
+        self._src_label = dim_label(refresh_row, src_text, size=11)
         self._src_label.pack(side="left")
         ctk.CTkButton(
             refresh_row, text="⟳ Refresh Models", width=130, height=28,
             fg_color=C["card"], hover_color=C["border"],
             text_color=C["accent"], border_width=1, border_color=C["border"],
             corner_radius=8, font=ctk.CTkFont(size=11),
-            command=self._do_refresh_models,
+            command=lambda: self._do_refresh_models(force=True),
         ).pack(side="right")
 
         # ── Claude API models ─────────────────────────────────────────
@@ -204,7 +224,21 @@ class ModelsPage(BasePage):
             "good": C["accent"], "fair": C["yellow"], "basic": C["dim"],
         }
         for m in db.local_models:
-            row_card = card_frame(self._browse_content)
+            is_installed = m.id in installed_ids
+
+            # Hardware compatibility check
+            is_compatible = None
+            if vram_mb is not None and ram_gb is not None:
+                if vram_mb > 0:
+                    is_compatible = (m.vram_required_mb <= vram_mb
+                                     and m.ram_required_gb <= ram_gb)
+                else:
+                    is_compatible = m.ram_required_gb <= ram_gb * 0.6
+
+            row_card = card_frame(
+                self._browse_content,
+                border_color=C["accent"] if is_installed else C["border"],
+            )
             row_card.pack(fill="x", pady=4)
             left = ctk.CTkFrame(row_card, fg_color="transparent")
             left.pack(side="left", fill="x", expand=True, padx=16, pady=12)
@@ -216,6 +250,8 @@ class ModelsPage(BasePage):
             ctk.CTkLabel(name_row, text=f"  {m.quality.upper()}",
                          font=ctk.CTkFont(size=11, weight="bold"),
                          text_color=qc).pack(side="left", pady=2)
+            if is_installed:
+                badge(name_row, "INSTALLED", C["green"]).pack(side="left", padx=6)
 
             dim_label(left, m.description, size=12).pack(anchor="w", pady=(2, 0))
 
@@ -236,15 +272,40 @@ class ModelsPage(BasePage):
 
             right = ctk.CTkFrame(row_card, fg_color="transparent")
             right.pack(side="right", padx=16, pady=12)
+
+            # Compatibility badge (only when hardware info is available)
+            if is_compatible is True:
+                ctk.CTkLabel(right, text="✓ Compatible",
+                             font=ctk.CTkFont(size=10, weight="bold"),
+                             text_color=C["green"]).pack(anchor="e", pady=(0, 4))
+            elif is_compatible is False:
+                ctk.CTkLabel(right, text="✗ Insufficient VRAM/RAM",
+                             font=ctk.CTkFont(size=10, weight="bold"),
+                             text_color=C["red"]).pack(anchor="e", pady=(0, 4))
+
             dim_label(right, m.use_case, size=11, wraplength=160).pack(anchor="e")
             if m.ollama_pull:
                 dim_label(right, m.ollama_pull, size=10).pack(anchor="e", pady=(4, 0))
 
+            # Delete button — only for models already installed locally
+            if is_installed:
+                ctk.CTkButton(
+                    right, text="🗑 Delete", width=80, height=26,
+                    fg_color="transparent", hover_color="#2d1515",
+                    text_color=C["red"], border_width=1, border_color=C["red"],
+                    corner_radius=6, font=ctk.CTkFont(size=10),
+                    command=lambda mid=m.id: self._do_delete_model(mid),
+                ).pack(anchor="e", pady=(6, 0))
+
         # bottom padding
         ctk.CTkFrame(self._browse_content, fg_color="transparent", height=24).pack()
 
-    def _do_refresh_models(self):
-        """Fetch live model data from Anthropic + Ollama in a background thread."""
+    def _do_refresh_models(self, force: bool = True):
+        """Fetch live model data from Anthropic + Ollama in a background thread.
+
+        When *force* is False the cached result is used if it is still fresh
+        (respects the CACHE_TTL_HOURS setting in model_fetcher.py).
+        """
         import threading
         if hasattr(self, "_src_label"):
             self._src_label.configure(text="Fetching live model data…")
@@ -259,23 +320,56 @@ class ModelsPage(BasePage):
                 db = ModelDatabase()
                 result = db.refresh(
                     api_key=None,
-                    force=True,
+                    force=force,
                     on_progress=lambda m: self.app.after(0, lambda msg=m: _update_status(msg)),
                 )
-                self.app.after(0, lambda: self._on_refresh_done(result))
+                self.app.after(0, lambda: self._on_refresh_done(db, result))
             except Exception as exc:
                 self.app.after(0, lambda e=exc: _update_status(f"Refresh failed: {e}"))
         threading.Thread(target=_run, daemon=True).start()
 
-    def _on_refresh_done(self, result):
+    def _on_refresh_done(self, db, result):
+        self._current_db = db
+        installed_count = len(db.installed_model_ids())
         errors = ", ".join(result.errors) if result.errors else ""
         src_msg = f"Data source: {result.source}"
+        if installed_count:
+            src_msg += f"  ·  {installed_count} installed locally"
         if errors:
             src_msg += f"  ·  {errors}"
         if hasattr(self, "_src_label"):
             self._src_label.configure(text=src_msg)
-        # Re-build the browse panel with fresh data
-        self._build_browse()
+        # Re-build the browse panel with the freshly fetched data
+        self._build_browse(db=db)
+
+    def _do_delete_model(self, model_id: str):
+        """Delete a locally installed Ollama model in a background thread."""
+        import threading
+
+        def _update_status(msg: str):
+            if hasattr(self, "_src_label"):
+                self._src_label.configure(text=msg)
+
+        def _run():
+            try:
+                import subprocess
+                self.app.after(0, lambda: _update_status(f"Deleting {model_id}…"))
+                r = subprocess.run(
+                    ["ollama", "rm", model_id],
+                    capture_output=True, text=True, timeout=60,
+                )
+                if r.returncode == 0:
+                    self.app.after(0, lambda: _update_status(
+                        f"Deleted {model_id}. Refreshing list…"
+                    ))
+                    # Force-refresh so the deleted model is no longer shown
+                    self.app.after(200, lambda: self._do_refresh_models(force=True))
+                else:
+                    err = (r.stderr or r.stdout).strip()
+                    self.app.after(0, lambda e=err: _update_status(f"Delete failed: {e}"))
+            except Exception as exc:
+                self.app.after(0, lambda e=exc: _update_status(f"Delete failed: {e}"))
+        threading.Thread(target=_run, daemon=True).start()
 
     def _refresh(self):
         if not self.app.bench_result or not self.app.system_info:
@@ -296,7 +390,9 @@ class ModelsPage(BasePage):
         result = self.app.bench_result
         vram_mb = max((g.vram_mb for g in info.gpus), default=0)
 
-        self.app.recommendation = ModelRecommender().recommend(
+        # Use the most recently refreshed database so recommendations include
+        # any locally installed Ollama models the user actually has.
+        self.app.recommendation = ModelRecommender(db=self._current_db).recommend(
             benchmark_tier=result.tier,
             overall_score=result.overall_score,
             ram_gb=info.ram_total_gb,

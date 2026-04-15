@@ -234,6 +234,27 @@ class AliasManager:
             self.log(f"  [error] ollama pull failed: {exc}")
             return False
 
+    def delete_model(self, model_id: str) -> bool:
+        """Run `ollama rm <model_id>` to remove a locally installed model.
+        Returns True on success."""
+        self.log(f"  Removing '{model_id}' from Ollama…")
+        try:
+            result = subprocess.run(
+                ["ollama", "rm", model_id],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode == 0:
+                self.log(f"  Model '{model_id}' removed.")
+                return True
+            err = (result.stderr or result.stdout).strip()
+            self.log(f"  [error] ollama rm failed: {err}")
+            return False
+        except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+            self.log(f"  [error] ollama rm failed: {exc}")
+            return False
+
     # ── Internals ─────────────────────────────────────────────────────────────
 
     def _bin_dir(self) -> str:
