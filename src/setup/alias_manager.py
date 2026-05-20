@@ -291,7 +291,10 @@ class AliasManager:
         if bin_dir in content:
             return
 
-        snippet = f'\nexport PATH="{bin_dir}:$PATH"\n'
+        if profile.endswith("config.fish"):
+            snippet = f'\nset -gx PATH "{bin_dir}" $PATH\n'
+        else:
+            snippet = f'\nexport PATH="{bin_dir}:$PATH"\n'
         with open(profile, "a") as f:
             f.write(snippet)
         self.log(f"  Added {bin_dir} to PATH in {profile}")

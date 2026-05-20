@@ -1,10 +1,17 @@
 """
-Install page — prerequisites checklist + one-click Claude Code install with live log.
+Install page — prerequisites checklist + one-click Claude Code install + live log.
 """
 
 import threading
+import shutil
+import subprocess
 import customtkinter as ctk
-from ..app import BasePage, C, card_frame, label, dim_label, accent_button, status_dot
+
+from ..app import (
+    BasePage, C,
+    card_frame, label, dim_label, sub_label,
+    accent_button, ghost_button, chip, hairline,
+)
 
 
 class StepRow(ctk.CTkFrame):
@@ -12,22 +19,29 @@ class StepRow(ctk.CTkFrame):
 
     def __init__(self, parent, name, required):
         super().__init__(parent, fg_color="transparent")
-        self._dot = ctk.CTkLabel(self, text="◌", font=ctk.CTkFont(size=14), text_color=C["dim"], width=20)
+        self._dot = ctk.CTkLabel(
+            self, text="◌", font=ctk.CTkFont(size=14),
+            text_color=C["dim"], width=20,
+        )
         self._dot.pack(side="left")
+
         lf = ctk.CTkFrame(self, fg_color="transparent")
-        lf.pack(side="left", padx=10, fill="x", expand=True)
+        lf.pack(side="left", padx=12, fill="x", expand=True)
         label(lf, name, size=13).pack(anchor="w")
         req_text = "Required" if required else "Optional"
-        self._hint = dim_label(lf, req_text, size=11)
+        self._hint = sub_label(lf, req_text, size=11)
         self._hint.pack(anchor="w")
 
     def set_found(self, found: bool, version: str = "", hint: str = ""):
         if found:
             self._dot.configure(text="✓", text_color=C["green"])
-            self._hint.configure(text=version or "Found")
+            self._hint.configure(text=version or "Found", text_color=C["green"])
         else:
             self._dot.configure(text="✗", text_color=C["red"])
-            self._hint.configure(text=hint[:80] if hint else "Not found", text_color=C["yellow"])
+            self._hint.configure(
+                text=hint[:80] if hint else "Not found",
+                text_color=C["yellow"],
+            )
 
     def set_pending(self):
         self._dot.configure(text="⟳", text_color=C["accent"])
@@ -51,17 +65,27 @@ class InstallPage(BasePage):
     def _build(self):
         self.page_header(
             "Install Claude Code",
-            "Checks prerequisites, installs Node.js if needed, then installs the Claude Code CLI.",
+            "Verify prerequisites and install the Claude Code CLI with one click.",
         )
+
         outer = ctk.CTkFrame(self, fg_color="transparent")
-        outer.pack(fill="both", expand=True, padx=28)
+        outer.pack(fill="both", expand=True, padx=32, pady=(0, 24))
         outer.columnconfigure(0, weight=2)
         outer.columnconfigure(1, weight=3)
 
         # ── Left: prerequisites ───────────────────────────────────────
         prereq_card = card_frame(outer)
-        prereq_card.grid(row=0, column=0, padx=(0, 10), pady=0, sticky="nsew")
-        label(prereq_card, "Prerequisites", size=14, weight="bold").pack(anchor="w", padx=16, pady=(14, 10))
+        prereq_card.grid(row=0, column=0, padx=(0, 12), sticky="nsew")
+
+        head = ctk.CTkFrame(prereq_card, fg_color="transparent")
+        head.pack(fill="x", padx=18, pady=(16, 4))
+        label(head, "Prerequisites", size=14, weight="bold").pack(side="left")
+        chip(head, "auto-checked", color=C["accent"],
+             bg="#0e2522").pack(side="left", padx=10)
+
+        sub_label(prereq_card,
+                  "Anything missing? We'll show install hints.",
+                  size=11).pack(anchor="w", padx=18, pady=(0, 8))
 
         self._step_rows = {}
         prereq_names = [
@@ -73,67 +97,86 @@ class InstallPage(BasePage):
         ]
         for name, required in prereq_names:
             row = StepRow(prereq_card, name, required)
-            row.pack(fill="x", padx=16, pady=4)
+            row.pack(fill="x", padx=18, pady=6)
+
             self._step_rows[name] = row
 
-        self._check_btn = ctk.CTkButton(
-            prereq_card, text="Recheck",
-            fg_color=C["card"], hover_color=C["border"],
-            text_color=C["accent"], border_width=1, border_color=C["accent"],
-            corner_radius=8, height=32,
-            command=self._run_prereq_check,
+        ctk.CTkFrame(prereq_card, fg_color="transparent", height=6).pack()
+        self._check_btn = ghost_button(
+            prereq_card, "⟳  Recheck",
+            self._run_prereq_check, width=120, color=C["accent"],
         )
-        self._check_btn.pack(padx=16, pady=14, anchor="w")
+        self._check_btn.pack(padx=18, pady=14, anchor="w")
 
         # ── Right: install panel ──────────────────────────────────────
         right = ctk.CTkFrame(outer, fg_color="transparent")
-        right.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        right.grid(row=0, column=1, sticky="nsew", padx=(12, 0))
 
         install_card = card_frame(right)
         install_card.pack(fill="x", pady=(0, 12))
-        label(install_card, "Claude Code CLI", size=14, weight="bold").pack(anchor="w", padx=16, pady=(14, 4))
-        self._claude_status = dim_label(install_card, "Checking…")
-        self._claude_status.pack(anchor="w", padx=16, pady=(0, 10))
+
+        head2 = ctk.CTkFrame(install_card, fg_color="transparent")
+        head2.pack(fill="x", padx=18, pady=(16, 4))
+        label(head2, "Claude Code CLI", size=14, weight="bold").pack(side="left")
+        self._status_chip_holder = ctk.CTkFrame(head2, fg_color="transparent")
+        self._status_chip_holder.pack(side="left", padx=10)
+
+        self._claude_status = dim_label(install_card, "Checking…", size=12)
+        self._claude_status.pack(anchor="w", padx=18, pady=(0, 12))
 
         btn_row = ctk.CTkFrame(install_card, fg_color="transparent")
-        btn_row.pack(anchor="w", padx=16, pady=(0, 14))
-        self._install_btn = accent_button(btn_row, "⬇  Install Claude Code", self._do_install, width=200)
+        btn_row.pack(anchor="w", padx=18, pady=(0, 16))
+        self._install_btn = accent_button(
+            btn_row, "⬇  Install Claude Code", self._do_install, width=220,
+        )
         self._install_btn.pack(side="left")
-        self._update_btn = ctk.CTkButton(
-            btn_row, text="⟳ Update", width=90, height=36,
-            fg_color=C["card"], hover_color=C["border"],
-            text_color=C["accent"], border_width=1, border_color=C["border"],
-            corner_radius=8, command=self._do_update,
+        self._update_btn = ghost_button(
+            btn_row, "⟳  Update", self._do_update, width=110,
+            color=C["accent"],
         )
         self._update_btn.pack(side="left", padx=8)
 
         # Log
         log_card = card_frame(right)
         log_card.pack(fill="both", expand=True)
-        label(log_card, "Log", size=12, color=C["dim"]).pack(anchor="w", padx=14, pady=(10, 4))
+        head3 = ctk.CTkFrame(log_card, fg_color="transparent")
+        head3.pack(fill="x", padx=18, pady=(12, 4))
+        label(head3, "Live log", size=13, weight="bold",
+              color=C["dim"]).pack(side="left")
+        ghost_button(head3, "Clear",
+                     self._clear_log, width=70, color=C["sub"]).pack(side="right")
+
         self._log = ctk.CTkTextbox(
             log_card,
             fg_color=C["bg"],
             text_color=C["text"],
-            font=ctk.CTkFont(family="Courier", size=12),
+            font=ctk.CTkFont(family="Menlo", size=12),
             corner_radius=8,
             border_width=1,
             border_color=C["border"],
-            height=260,
+            height=320,
             state="disabled",
             wrap="word",
         )
-        self._log.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        self._log.pack(fill="both", expand=True, padx=14, pady=(0, 14))
 
     # ------------------------------------------------------------------
+
+    def _set_status_chip(self, text, color, bg):
+        for w in self._status_chip_holder.winfo_children():
+            w.destroy()
+        chip(self._status_chip_holder, text, color=color,
+             bg=bg).pack(side="left")
 
     def _run_prereq_check(self):
         for row in self._step_rows.values():
             row.set_pending()
+
         def _check():
             from ...setup.prerequisites import PrerequisiteChecker
             statuses = PrerequisiteChecker().check_all()
             self.app.after(0, lambda: self._apply_prereq(statuses))
+
         threading.Thread(target=_check, daemon=True).start()
         self._refresh_claude_btn()
 
@@ -141,26 +184,33 @@ class InstallPage(BasePage):
         for s in statuses:
             row = self._step_rows.get(s.name)
             if row:
-                row.set_found(s.found, version=s.version or "", hint=s.install_hint)
+                row.set_found(s.found, version=s.version or "",
+                              hint=s.install_hint)
         self._refresh_claude_btn()
 
     def _refresh_claude_btn(self):
-        import shutil
         installed = shutil.which("claude") is not None
         if installed:
-            import subprocess
             try:
-                r = subprocess.run(["claude", "--version"], capture_output=True, text=True, timeout=5)
-                ver = r.stdout.strip().splitlines()[0] if r.returncode == 0 else "unknown"
+                r = subprocess.run(
+                    ["claude", "--version"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                ver = (r.stdout.strip().splitlines()[0]
+                       if r.returncode == 0 else "unknown")
             except Exception:
                 ver = "unknown"
             self._claude_status.configure(
-                text=f"Installed — {ver}", text_color=C["green"]
-            )
-            self._install_btn.configure(state="disabled", text="Already Installed")
+                text=f"Installed — {ver}", text_color=C["green"])
+            self._install_btn.configure(state="disabled",
+                                        text="Already Installed")
+            self._set_status_chip("Installed", C["green"], "#0e2a1c")
         else:
-            self._claude_status.configure(text="Not installed", text_color=C["dim"])
-            self._install_btn.configure(state="normal", text="⬇  Install Claude Code")
+            self._claude_status.configure(
+                text="Not installed yet.", text_color=C["dim"])
+            self._install_btn.configure(state="normal",
+                                        text="⬇  Install Claude Code")
+            self._set_status_chip("Missing", C["yellow"], "#2a1f0a")
 
     def _do_install(self):
         if self._busy:
@@ -168,6 +218,7 @@ class InstallPage(BasePage):
         self._busy = True
         self._install_btn.configure(state="disabled", text="Installing…")
         self._clear_log()
+
         def _run():
             from ...setup.claude_installer import ClaudeCodeInstaller
             installer = ClaudeCodeInstaller(on_log=self._append_log)
@@ -175,6 +226,7 @@ class InstallPage(BasePage):
             if ok:
                 installer.verify()
             self.app.after(0, self._on_install_done)
+
         threading.Thread(target=_run, daemon=True).start()
 
     def _on_install_done(self):
@@ -187,11 +239,13 @@ class InstallPage(BasePage):
         self._busy = True
         self._update_btn.configure(state="disabled")
         self._clear_log()
+
         def _run():
             from ...setup.claude_installer import ClaudeCodeInstaller
             ClaudeCodeInstaller(on_log=self._append_log).update()
             self.app.after(0, lambda: self._update_btn.configure(state="normal"))
             self.app.after(0, lambda: setattr(self, "_busy", False))
+
         threading.Thread(target=_run, daemon=True).start()
 
     def _append_log(self, msg: str):
