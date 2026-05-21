@@ -282,6 +282,7 @@ class SettingsPage(BasePage):
         if not key:
             self._api_status.configure(text="Enter an API key first.",
                                        text_color=C["yellow"])
+            self.app.show_toast("Enter an API key first", kind="warn")
             return
 
         logs = []
@@ -290,6 +291,9 @@ class SettingsPage(BasePage):
         msg = "  ".join(logs) if logs else ("Saved." if ok else "Failed to save.")
         self._api_status.configure(
             text=msg, text_color=C["green"] if ok else C["red"])
+        self.app.show_toast("API key saved to shell profile" if ok
+                            else "Failed to save API key",
+                            kind="success" if ok else "error")
 
     def _refresh_models(self):
         if self._db_loading:
@@ -344,6 +348,9 @@ class SettingsPage(BasePage):
             "Settings saved." if ok else "Failed to save settings.")
         self._model_status.configure(
             text=msg, text_color=C["green"] if ok else C["red"])
+        self.app.show_toast(f"Default model set to {model_id}" if ok
+                            else "Failed to write settings",
+                            kind="success" if ok else "error")
 
     def _install_ollama(self):
         self._install_ollama_btn.configure(state="disabled", text="Installing…")
@@ -379,6 +386,12 @@ class SettingsPage(BasePage):
             ok = cfg.pull_ollama_model(model_id)
             self.app.after(0, lambda: self._log_pull(
                 f"✓ {model_id} ready." if ok else f"✗ Failed to pull {model_id}."))
+            if ok:
+                self.app.after(0, lambda: self.app.show_toast(
+                    f"{model_id} is ready", kind="success"))
+            else:
+                self.app.after(0, lambda: self.app.show_toast(
+                    f"Failed to pull {model_id}", kind="error"))
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -393,6 +406,8 @@ class SettingsPage(BasePage):
             "Created." if ok else "CLAUDE.md already exists.")
         self._md_status.configure(
             text=msg, text_color=C["green"] if ok else C["yellow"])
+        self.app.show_toast("CLAUDE.md created" if ok else "CLAUDE.md already exists",
+                            kind="success" if ok else "info")
 
     def _export_report(self):
         if not self.app.system_info and not self.app.bench_result:
@@ -425,6 +440,9 @@ class SettingsPage(BasePage):
                 json.dump(report, f, indent=2)
             self._export_status.configure(
                 text=f"✓ Report saved to {raw_path}", text_color=C["green"])
+            self.app.show_toast(f"Report saved to {os.path.basename(raw_path)}",
+                                kind="success")
         except Exception as exc:
             self._export_status.configure(text=f"Error: {exc}",
                                           text_color=C["red"])
+            self.app.show_toast(f"Export failed: {exc}", kind="error")

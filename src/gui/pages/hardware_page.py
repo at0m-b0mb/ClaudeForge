@@ -8,7 +8,7 @@ import customtkinter as ctk
 from ..app import (
     BasePage, C,
     card_frame, label, dim_label, sub_label,
-    accent_button, ghost_button, chip, hairline, UsageBar,
+    accent_button, ghost_button, chip, hairline, UsageBar, Skeleton,
 )
 
 
@@ -131,6 +131,11 @@ class HardwarePage(BasePage):
                     page.on_hardware_ready()
                 except Exception:
                     pass
+        self.app.show_toast("Hardware scan complete", kind="success")
+        try:
+            self.app.sidebar.refresh_status()
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
 
@@ -138,7 +143,9 @@ class HardwarePage(BasePage):
         for card in (self._os_card, self._cpu_card, self._ram_card,
                      self._gpu_card, self._disk_card):
             card.clear()
-            dim_label(card.body, "—", size=12).pack(anchor="w")
+            for h in (12, 12, 12):
+                s = Skeleton(card.body, height=h)
+                s.pack(fill="x", pady=4)
 
     def _populate(self):
         info = self.app.system_info

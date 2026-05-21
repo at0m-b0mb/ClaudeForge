@@ -265,15 +265,23 @@ class AliasPage(BasePage):
                 text=f"✓ '{name}' created — reload your shell to use it.",
                 text_color=C["green"],
             )
+            self.app.show_toast(f"Alias '{name}' created — reload your shell",
+                                kind="success")
+            try:
+                self.app.sidebar.refresh_status()
+            except Exception:
+                pass
         else:
             self._create_status.configure(text="Creation failed.",
                                           text_color=C["red"])
+            self.app.show_toast("Failed to create alias", kind="error")
         self._refresh_list()
 
     def _do_remove(self, alias_name: str):
         from ...setup.alias_manager import AliasManager
         AliasManager().remove(alias_name)
         self._refresh_list()
+        self.app.show_toast(f"Alias '{alias_name}' removed", kind="info")
 
     def _get_local_model_ids(self):
         if not shutil.which("ollama"):

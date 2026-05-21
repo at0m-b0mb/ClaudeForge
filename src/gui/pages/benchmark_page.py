@@ -129,6 +129,15 @@ class BenchmarkPage(BasePage):
             self.app.pages["models"].on_benchmark_ready()
         if hasattr(self.app.pages.get("dashboard"), "on_hardware_ready"):
             self.app.pages["dashboard"].on_hardware_ready()
+        tier = result.tier.upper()
+        self.app.show_toast(
+            f"Benchmark done — {tier} tier  ·  {result.overall_score:.0f}/100",
+            kind="success",
+        )
+        try:
+            self.app.sidebar.refresh_status()
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
 
@@ -160,12 +169,18 @@ class BenchmarkPage(BasePage):
         inner.columnconfigure(0, weight=0)
         inner.columnconfigure(1, weight=1)
 
-        # Donut
+        # Donut with gradient ring (low→high color)
         donut_box = ctk.CTkFrame(inner, fg_color=C["card"])
         donut_box.grid(row=0, column=0, sticky="w", padx=(0, 22))
+        gradient_stops = {
+            "ultra": [C["indigo"], C["accent"], C["green"]],
+            "high":  [C["accent"], C["green"]],
+            "mid":   [C["yellow"], C["accent"]],
+            "low":   [C["red"], C["yellow"]],
+        }.get(result.tier, [tier_color, tier_color])
         donut = DonutGauge(donut_box,
                            value=result.overall_score, max_val=100,
-                           color=tier_color, size=180, thickness=16,
+                           gradient=gradient_stops, size=180, thickness=16,
                            bg=C["card"], label_text="overall")
         donut.pack()
 

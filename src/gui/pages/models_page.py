@@ -327,24 +327,45 @@ class ModelsPage(BasePage):
             w.destroy()
 
         from ...models.database import ModelDatabase
-        db = ModelDatabase()
+        self._browse_db = ModelDatabase()
+        db = self._browse_db
 
-        # Header row: source label + refresh
-        hdr = ctk.CTkFrame(self._browse_content, fg_color="transparent")
-        hdr.pack(fill="x", pady=(0, 12))
-        self._src_label = dim_label(
-            hdr,
-            f"Source: {db.last_fetch_source()}",
-            size=11,
+        # ── Toolbar: search + source label + refresh ──────────────────
+        toolbar = ctk.CTkFrame(self._browse_content, fg_color="transparent")
+        toolbar.pack(fill="x", pady=(0, 14))
+        toolbar.columnconfigure(1, weight=1)
+
+        self._search_var = ctk.StringVar()
+        self._search_var.trace_add("write", lambda *_: self._filter_rows())
+
+        search_box = ctk.CTkEntry(
+            toolbar,
+            textvariable=self._search_var,
+            placeholder_text="🔍  Search models…",
+            fg_color=C["card"], border_color=C["border"],
+            text_color=C["text"], placeholder_text_color=C["sub"],
+            font=ctk.CTkFont(size=13),
+            height=36, corner_radius=10,
         )
-        self._src_label.pack(side="left")
-        ghost_button(hdr, "⟳  Refresh models",
-                     self._do_refresh_models, width=160, color=C["accent"]).pack(
-            side="right")
+        search_box.grid(row=0, column=0, sticky="ew", padx=(0, 10), ipadx=4)
 
-        # ── Claude API ────────────────────────────────────────────────
-        label(self._browse_content, "Claude API Models", size=15,
-              weight="bold").pack(anchor="w", pady=(0, 10))
+        self._src_label = dim_label(toolbar, f"Source: {db.last_fetch_source()}", size=11)
+        self._src_label.grid(row=0, column=1, sticky="w")
+
+        ghost_button(toolbar, "⟳  Refresh",
+                     self._do_refresh_models, width=130, color=C["accent"]
+                     ).grid(row=0, column=2)
+
+        # ── Rows container (we rebuild this on filter) ─────────────────
+        self._rows_container = ctk.CTkFrame(self._browse_content, fg_color="transparent")
+        self._rows_container.pack(fill="both", expand=True)
+
+        self._all_row_data = []  # (display_widget_factory, search_text)
+        self._row_widgets  = []  # built CTkFrame widgets
+
+        # Build Claude API rows
+        self._browse_section_labels = {}
+        self._claude_section_idx = len(self._all_row_data)
 
         for m in db.claude_api_models:
             tier_color = TIER_FG.get(m.tier, C["dim"])
@@ -354,27 +375,22 @@ class ModelsPage(BasePage):
             meta = [
                 m.id, ctx, out,
                 f"HumanEval {bench.get('humaneval', '?')}%" if bench else None,
-                f"SWE-bench {bench.get('swe_bench', '?')}%"
-                    if 'swe_bench' in bench else None,
+                f"SWE-bench {bench.get('swe_bench', '?')}%" if 'swe_bench' in bench else None,
             ]
-            right = m.strengths[:3]
             footnote = ""
             if m.pricing:
-                inp = m.pricing.get("input_per_mtok", 0)
+                inp  = m.pricing.get("input_per_mtok", 0)
                 outp = m.pricing.get("output_per_mtok", 0)
                 footnote = f"${inp:.2f} / ${outp:.2f} per MTok"
-            row = CatalogRow(
-                self._browse_content,
-                name=m.display_name,
-                tier_label=m.tier.title(), tier_color=tier_color,
-                desc=m.description,
-                meta_chips=meta, right_chips=right, footnote=footnote,
-            )
-            row.pack(fill="x", pady=4)
+            search_key = f"{m.display_name} {m.id} {m.description} {m.tier}".lower()
+            self._all_row_data.append(({
+                "name": m.display_name, "tier_label": m.tier.title(),
+                "tier_color": tier_color, "desc": m.description,
+                "meta_chips": meta, "right_chips": m.strengths[:3],
+                "footnote": footnote,
+            }, search_key, "claude"))
 
-        # ── Local / Ollama ────────────────────────────────────────────
-        label(self._browse_content, "Local Models  (via Ollama)", size=15,
-              weight="bold").pack(anchor="w", pady=(20, 10))
+        self._local_section_idx = len(self._all_row_data)
 
         for m in db.local_models:
             qc = QUALITY_FG.get(m.quality, C["dim"])
@@ -388,17 +404,62 @@ class ModelsPage(BasePage):
                 f"HumanEval {bench.get('humaneval', '?')}%" if bench else None,
             ]
             right = [m.use_case] if m.use_case else None
-            footnote = m.ollama_pull or ""
-            CatalogRow(
-                self._browse_content,
-                name=m.display_name,
-                tier_label=m.quality.title(), tier_color=qc,
-                desc=m.description,
-                meta_chips=meta, right_chips=right, footnote=footnote,
-            ).pack(fill="x", pady=4)
+            search_key = (f"{m.display_name} {m.id} {m.description} "
+                          f"{m.quality} {m.speed} {m.use_case or ''}").lower()
+            self._all_row_data.append(({
+                "name": m.display_name, "tier_label": m.quality.title(),
+                "tier_color": qc, "desc": m.description,
+                "meta_chips": meta, "right_chips": right,
+                "footnote": m.ollama_pull or "",
+            }, search_key, "local"))
 
-        ctk.CTkFrame(self._browse_content, fg_color="transparent",
-                     height=24).pack()
+        self._filter_rows()
+
+    def _filter_rows(self):
+        query = self._search_var.get().strip().lower() if hasattr(self, "_search_var") else ""
+
+        # Destroy old widgets
+        for w in getattr(self, "_row_widgets", []):
+            try:
+                w.destroy()
+            except Exception:
+                pass
+        self._row_widgets = []
+
+        shown_claude = False
+        shown_local  = False
+
+        for kw, search_key, section in self._all_row_data:
+            if query and query not in search_key:
+                continue
+            parent = self._rows_container
+
+            if section == "claude" and not shown_claude:
+                hdr = label(parent, "Claude API Models", size=15, weight="bold")
+                hdr.pack(anchor="w", pady=(0, 10))
+                self._row_widgets.append(hdr)
+                shown_claude = True
+
+            if section == "local" and not shown_local:
+                hdr = label(parent, "Local Models  (via Ollama)", size=15, weight="bold")
+                hdr.pack(anchor="w", pady=(20, 10))
+                self._row_widgets.append(hdr)
+                shown_local = True
+
+            row = CatalogRow(parent, **kw)
+            row.pack(fill="x", pady=4)
+            self._row_widgets.append(row)
+
+        if not self._row_widgets:
+            empty = label(self._rows_container, "No models match your search.",
+                          size=14, color=C["dim"])
+            empty.pack(pady=40)
+            self._row_widgets.append(empty)
+
+        spacer = ctk.CTkFrame(self._rows_container,
+                              fg_color="transparent", height=24)
+        spacer.pack()
+        self._row_widgets.append(spacer)
 
     def _do_refresh_models(self):
         if hasattr(self, "_src_label"):
@@ -429,3 +490,7 @@ class ModelsPage(BasePage):
         if hasattr(self, "_src_label"):
             self._src_label.configure(text=msg)
         self._build_browse()
+        if result.errors:
+            self.app.show_toast(f"Partial refresh — {errors[:60]}", kind="warn")
+        else:
+            self.app.show_toast("Model catalog refreshed", kind="success")

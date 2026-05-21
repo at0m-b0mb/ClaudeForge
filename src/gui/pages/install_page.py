@@ -232,6 +232,16 @@ class InstallPage(BasePage):
     def _on_install_done(self):
         self._busy = False
         self._refresh_claude_btn()
+        installed = __import__("shutil").which("claude") is not None
+        if installed:
+            self.app.show_toast("Claude Code installed successfully!", kind="success")
+            try:
+                self.app.sidebar.refresh_status()
+            except Exception:
+                pass
+        else:
+            self.app.show_toast("Installation may have failed — check the log",
+                                kind="warn")
 
     def _do_update(self):
         if self._busy:
